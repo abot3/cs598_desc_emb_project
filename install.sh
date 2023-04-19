@@ -8,7 +8,7 @@
 #conda install --yes -c conda-forge pytorch-pretrained-bert
 #conda install -c huggingface transformers
 
-pip install transformers
+#pip install transformers
 pip install pyhealth
 pip install termcolor
 pip install pandarallel
