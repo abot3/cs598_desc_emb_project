@@ -22,6 +22,7 @@ from torch.utils.data import DataLoader
 
 
 class Trainer:
-    def __init__(self):
+    def __init__(self, args):
+        self._args = args
         pass
 
