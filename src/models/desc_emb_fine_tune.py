@@ -4,6 +4,11 @@ from typing import Dict, List, Optional, Any, Tuple, Callable, Iterable
 
 import torch
 import torch.nn as nn
+# from GPUtil import showUtilization as gpu_usage
+def gpu_usage():
+    pass
+def tensor_bytes(t):
+    return t.element_size() * t.nelement()
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 from transformers import BertTokenizer, BertModel, BertForMaskedLM, BertConfig, BertTokenizerFast
 from transformers import TensorType
@@ -82,10 +87,156 @@ class DembFtEmbed(nn.Module):
     '''
     def __init__(self, args):
         super().__init__()
+        self.use_gpu = True 
+        if self.use_gpu:
+            self.cuda = 'cuda' 
+            self.device = torch.device('cuda:0')
+        else:
+            self.cuda = 'cpu'
+            self.device = torch.device('cpu')
+        self.bert_config = BertConfig()
+        # self.bert_config = AutoConfig.from_pretrained("bert-base-uncased")
+        # self.bert_model = BertModel(self.bert_config).from_pretrained('bert-base-uncased', config=self.bert_config)
+        # self.bert_model = AutoModel.from_pretrained('bert-base-uncased')
+        # with torch.no_grad():
+        #     self.bert_model = BertModel(self.bert_config).from_pretrained('bert-base-uncased')
+        self.bert_model = BertModel(self.bert_config).from_pretrained('bert-base-uncased')
+        print(f'In DembFtEmbed constructor, before BERT.')
+        gpu_usage()
+        print(torch.cuda.memory_summary(device=None, abbreviated=False))
+        if self.use_gpu:
+            self.bert_model.to(self.cuda)
+        self.bert_config = self.bert_model.config
+        print(f'BERT model \n{self.bert_model}')
+        # print(f'BERT Config \n{self.bert_config}')
+        # print(f'BERT named params \n{list(self.bert_model.named_parameters())}')
+        print(f'In DembFtEmbed constructor, after BERT.')
+        gpu_usage()
+        print(torch.cuda.memory_summary(device=None, abbreviated=False))
+        
+        for name, param in self.bert_model.named_parameters():
+            if 'embeddings' in name: # embeddings layer
+                param.requires_grad = False
+            if 'encoder' in name and (('attention' in name or 'intermediate' in name) and (not 'dense' in name)):
+                param.requires_grad = False
+            if 'encoder': # encoder layer
+                param.requires_grad = False
     
+      
+#         # Run BERT model forward pass on tokenized input.
+#         embeddings = self.bert_model(input_ids=batch_enc_tensor['input_ids'],
+#                                      attention_mask=batch_enc_tensor['attention_mask'],
+#                                      token_type_ids=batch_enc_tensor['token_type_ids'],
+#                                      # could turn off so we're faster
+#                                      output_attentions=False)
+#         # These may be on GPU.
+#         return embeddings.last_hidden_state 
     
-    def forward(self, x, masks, rev_x, rev_masks):
-         return x, masks, rev_x, rev_masks
+    def forward(self, x, rev_x, **kwargs):
+        # if self.use_gpu:
+        #     batch_enc_tensor.to(self.cuda)
+     
+        # TODO - I think we need to flatten the (B, S, word_max_len) -> (BxS, word_max_len)
+        # then convert back to (B,S,768) after BERT.
+        bsz, seq_len, word_max_len = x['input_ids'].shape
+        # print(f'DembFtEmbed forward input x shape {x["input_ids"].shape}')
+          
+        # Copy to GPU. Flatten first two dimensions batch and sequence into one so BERT can run
+        # (B, S, word_max_len) -> (BxS, word_max_len)
+        gpu_x = {'output_attentions': False}
+        gpu_rev_x = {'output_attentions': False}
+        # print(f'In DembFtEmbed, before GPU copy.')
+        gpu_usage()
+        # print(torch.cuda.memory_summary(device=None, abbreviated=False))
+        for k,v in x.items():
+            if k in ['input_ids', 'attention_mask', 'token_type_ids']:
+                gpu_x[k] = v.to(self.cuda).view(-1, word_max_len)
+            else:
+                gpu_x[k] = v
+        assert(x['input_ids'].device == torch.device('cpu'))
+        assert(gpu_x['input_ids'].device == self.device)
+            
+        # print(f'iids  bytes: {tensor_bytes(gpu_x["input_ids"])}\n'
+        #       f'attn  bytes: {tensor_bytes(gpu_x["attention_mask"])}\n'
+        #       f'ttids bytes: {tensor_bytes(gpu_x["token_type_ids"])}')
+        # print(f'In DembFtEmbed, after GPU copy.')
+        # print(torch.cuda.memory_summary(device=None, abbreviated=False))
+        # Run BERT model forward pass on tokenized input.
+        # print(f'gpu_x.keys {gpu_x.keys()}')
+        # print(f'gpu_x type {type(gpu_x["input_ids"])}')
+        # print(f'gpu_x shape {gpu_x["input_ids"].shape}')
+        # with torch.no_grad():
+        fwd_embeddings = self.bert_model(**gpu_x)
+        fwd_embeddings = fwd_embeddings.last_hidden_state
+        gpu_usage()
+        assert(x['input_ids'].device == torch.device('cpu'))
+        assert(fwd_embeddings.device == self.device)
+        if self.use_gpu:
+            fwd_embeddings = fwd_embeddings.to('cpu')
+        
+        for k,v in rev_x.items():
+            if k in ['input_ids', 'attention_mask', 'token_type_ids']:
+                gpu_rev_x[k] = v.to(self.cuda).view(-1, word_max_len)
+            else:
+                gpu_rev_x[k] = v
+            
+        assert(rev_x['token_type_ids'].device == torch.device('cpu'))
+        assert(gpu_rev_x['token_type_ids'].device == self.device)
+        
+        # bert_args_fwd = {
+        #     'input_ids': x['input_ids'].view(-1, word_max_len),
+        #     'attention_mask': x['attention_masks'].view(-1, word_max_len),
+        #     'token_type_ids': x['token_type_ids'].view(-1, word_max_len),
+        #     'output_attentions': False,
+        # }
+        # bert_args_rev = {
+        #     'input_ids': rev_x['input_ids'].view(-1, word_max_len),
+        #     'attention_mask': rev_x['attention_masks'].view(-1, word_max_len),
+        #     'token_type_ids': rev_x['token_type_ids'].view(-1, word_max_len),
+        #     'output_attentions': False,
+        # }
+       
+        # with torch.no_grad():
+        rev_embeddings = self.bert_model(**gpu_rev_x)
+        rev_embeddings = rev_embeddings.last_hidden_state
+        gpu_usage()
+        
+        assert(rev_x['token_type_ids'].device == torch.device('cpu'))
+        assert(rev_embeddings.device == self.device)
+        
+        if self.use_gpu:
+            rev_embeddings = rev_embeddings.to('cpu')
+        
+        assert(x['input_ids'].device == torch.device('cpu'))
+        assert(rev_x['token_type_ids'].device == torch.device('cpu'))
+# https://stackoverflow.com/questions/61323621/how-to-understand-hidden-states-of-the-returns-in-bertmodelhuggingface-transfo
+# https://datascience.stackexchange.com/questions/66207/what-is-purpose-of-the-cls-token-and-why-is-its-encoding-output-important
+        # Take only the last hidden state embeddings from BERT.
+        # We need to take index 0, because it's the CLS token prepended to our sentence.
+        # The [CLS] represents the meaning of the whole sentence.
+        # TODO - I think we need to un-flatten the (BxS, 768) -> (B, S, 768) here.
+       
+        # (BxS, max_word_len, 768) -> (BxS, 1, 768)
+        fwd_embeddings = torch.squeeze(fwd_embeddings[:, 0, :], dim=1)
+        rev_embeddings = torch.squeeze(rev_embeddings[:, 0, :], dim=1)
+
+        # The 1st dimension is seq length. The second dimension is embedding length of each sentence.
+        assert(fwd_embeddings.shape[-1] == self.bert_config.hidden_size)
+        assert(rev_embeddings.shape[-1] == self.bert_config.hidden_size)
+        assert(len(fwd_embeddings.shape) == 2)
+        assert(fwd_embeddings.dtype == torch.float)
+        
+        # (BxS, 1, 768) -> (B, S, 768)
+        assert(fwd_embeddings.view(bsz, -1, 768).shape[1] == seq_len)
+        assert(rev_embeddings.view(bsz, -1, 768).shape[1] == seq_len)
+        fwd_embeddings = fwd_embeddings.view(bsz, -1, 768)
+        rev_embeddings = rev_embeddings.view(bsz, -1, 768)
+        
+        # print(f'DembFtEmbed forward output x shape {fwd_embeddings.shape}')
+        # # Return the ((model_inputs), label) 
+        # return (embeddings, sample['label'])
+        
+        return fwd_embeddings, rev_embeddings
     
 
 class DembFtRNN(nn.Module):
@@ -97,7 +248,7 @@ class DembFtRNN(nn.Module):
     1. The forward pass is run to generate embeddings for 
     '''
     
-    def __init__(self, args, bert_emb_size:int=_BERT_EMBEDDING_SIZE):
+    def __init__(self, args, bert_emb_size:int=768):
         super().__init__()
         """
         TODO: 
@@ -111,7 +262,6 @@ class DembFtRNN(nn.Module):
             num_codes: total number of diagnosis codes
         """
         self.bert_emb_size = bert_emb_size
-        # self.embedding = nn.Embedding(num_embeddings=self.bert_emb_size, embedding_dim=128) 
         self.rnn = nn.GRU(input_size=self.bert_emb_size, hidden_size=128, batch_first=True)
         self.rev_rnn = nn.GRU(input_size=self.bert_emb_size, hidden_size=128, batch_first=True)
         self.fc = nn.Linear(in_features=256,out_features=1)
@@ -121,7 +271,7 @@ class DembFtRNN(nn.Module):
         self.rev_rnn.flatten_parameters()
         
         
-    def forward(self, x, masks, rev_x, rev_masks):
+    def forward(self, x, masks, rev_x, rev_masks, **kwargs):
         """
         Arguments:
             x: the diagnosis sequence of shape (batch_size, #events(diag+proc+presc), embedding_dim)
