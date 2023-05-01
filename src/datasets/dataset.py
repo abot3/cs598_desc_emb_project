@@ -69,19 +69,24 @@ class DatasetCacher:
             3. length
     '''
     def __init__(self):
+        self.shard_size = 10000
         pass
    
 
     def _HashStr(self, s) -> str:
         return hashlib.md5(s.encode()).hexdigest() 
 
-
-    def _MakeMetadata(self, name: str, batch_size: int, length: int) -> Dict:
+    def _NumShards(self, length:int):
+        return  ceil(float(length)/self.shard_size)
+        
+    def _MakeMetadata(self, name: str, batch_size: int, length: int, shard: bool = False) -> Dict:
         metadata = {
             'auto_batch': batch_size == 0,
             'batch_size': batch_size,
             'length': length,
-            'dataset_name': name
+            'dataset_name': name,
+            'sharded': shard,
+            'shard_size': self.shard_size,
         }
         return metadata
 
@@ -104,15 +109,16 @@ class DatasetCacher:
         ])
         return os.path.join(MODULE_CACHE_PATH, filename)
 
-    
     def DatasetToCacheFromLoader(self, loader: DataLoader,
                                  task_fn: Callable,
                                  batch_size: int=0,
                                  overwrite: bool=False,
-                                 extra_data: Dict=None):
+                                 extra_data: Dict=None,
+                                 shard: bool=False):
+        metadata = self._MakeMetadata(task_fn.__name__, batch_size, len(loader.dataset), shard=shard)
         to_pickle = {
             'dataset': [x for x in tqdm.tqdm(loader)],
-            'metadata': self._MakeMetadata(task_fn.__name__, batch_size, len(loader.dataset))
+            'metadata': metadata,
         }
         if extra_data:
             to_pickle['metadata']['extra_data'] = extra_data
@@ -127,17 +133,15 @@ class DatasetCacher:
                            task_fn: Callable,
                            batch_size: int=0,
                            overwrite: bool=False,
-                           extra_data: Dict=None) -> None:
+                           extra_data: Dict=None,
+                           shard: bool=False) -> None:
         '''Write all items in the dataset to file.
         
           If the dataset already exists on disk this function is a no-op.
           The dataset is hashed by iterating over the whole dataset and writing
           all items to disk using pickle.
         '''
-        to_pickle = {
-            'dataset': [x for x in tqdm.tqdm(dataset)],
-            'metadata': self._MakeMetadata(task_fn.__name__, batch_size, len(dataset))
-        }
+        metadata = self._MakeMetadata(task_fn.__name__, batch_size, len(dataset), shard=shard)
         if extra_data:
             to_pickle['metadata']['extra_data'] = extra_data
         fname = self._GetHashString(to_pickle['metadata'])
@@ -147,16 +151,65 @@ class DatasetCacher:
         return to_pickle['metadata']
     
     
-    def SimpleDatasetFromCache(self, task_fn: Callable,
+#     def DatasetToCacheFromLoader(self, loader: DataLoader,
+#                                  task_fn: Callable,
+#                                  batch_size: int=0,
+#                                  overwrite: bool=False,
+#                                  extra_data: Dict=None,
+#                                  shard: bool=False):
+#         metadata = self._MakeMetadata(task_fn.__name__, batch_size, len(dataset), shard=shard)
+#         if extra_data:
+#             metadata['extra_data'] = extra_data
+#         fnames = self._GetHashString(to_pickle['metadata'])
+#         logging.info(f'Caching dataset {to_pickle["metadata"]} to file `{fnames}`.')
+#         for i, fname in enumerate(fnames):
+#             to_pickle = {
+#                 'dataset': [x for x in tqdm.tqdm(dataset)],
+#                 'metadata': metadata,
+#             }
+#             if not os.path.exists(fname) or overwrite:
+#                 save_pickle(to_pickle, fname)
+#         return metadata
+        
+    
+#     def DatasetToCache(self, dataset: Dataset,
+#                            task_fn: Callable,
+#                            batch_size: int=0,
+#                            overwrite: bool=False,
+#                            extra_data: Dict=None,
+#                            shard: bool=False) -> None:
+#         '''Write all items in the dataset to file.
+        
+#           If the dataset already exists on disk this function is a no-op.
+#           The dataset is hashed by iterating over the whole dataset and writing
+#           all items to disk using pickle.
+#         '''
+#         metadata = self._MakeMetadata(task_fn.__name__, batch_size, len(dataset), shard=shard)
+#         if extra_data:
+#             metadata['extra_data'] = extra_data
+#         fnames = self._GetHashString(to_pickle['metadata'])
+#         logging.info(f'Caching dataset {to_pickle["metadata"]} to file `{fnames}`.')
+#         for i, fname in enumerate(fnames):
+#             to_pickle = {
+#                 'dataset': [x for x in tqdm.tqdm(dataset[i*metadata['shard_size']:(i+1)*metadata['shard_size']])],
+#                 'metadata': metadata,
+#             }
+#             if not os.path.exists(fname) or overwrite:
+#                 save_pickle(to_pickle, fname)
+#         return metadata
+    
+    
+    def SimpleDatasetFromCache(self, name: str,
                          batch_size: int,
                          length: int) -> Dataset:
         '''Retrieve all items in the dataset from file.
         '''
-        metadata = self._MakeMetadata(task_fn.__name__, batch_size, length)
+        metadata = self._MakeMetadata(name, batch_size, length)
         fname = self._GetHashString(metadata)
         logging.info(f'Loading cached dataset {metadata} from file `{fname}`.')
         d = load_pickle(fname)
         return SimpleDataset(d['dataset']), d['metadata'] 
+    
     
     def StructuredDatasetFromCache(self, name: str,
                          batch_size: int,
@@ -169,6 +222,7 @@ class DatasetCacher:
         d = load_pickle(fname)
         return StructuredDataset(d['dataset'], d['metadata']), d['metadata']
 
+    
     def DataloaderFromCache(self, *args, **kwargs) -> DataLoader:
         dataset, metadata = self.SimpleDatasetFromCache(*args, **kwargs)
         batch_size = metadata['batch_size']

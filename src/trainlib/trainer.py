@@ -79,6 +79,7 @@ class Trainer:
             self.model.train()
             train_loss = 0
             # for x, masks, rev_x, rev_masks, y in tqdm.tqdm(self.data_loaders['train']):
+            print(f'Training epoch {epoch + 1}')
             for sample_dict in tqdm.tqdm(self.data_loaders['train']):
                 """
                     1. zero grad
@@ -134,21 +135,24 @@ class Trainer:
         elif self.embed_model_type.startswith('desc'):
             if self.args.task == 'mort':
                 if self.args.is_dev:
-                    name, batch_size, length = ('mortality_pred_task_demb', 0, 704)
+                    name, batch_size, length = ('mortality_pred_task_demb', 0, 880)
                 else:
-                    name, batch_size, length = ('mortality_pred_task_demb', 0, 1000)
+                    name, batch_size, length = ('mortality_pred_task_demb', 0, 10000)
             elif self.args.task == 'readm':
                 if self.args.is_dev:
-                    name, batch_size, length = ('readmission_pred_task_demb', 0, 704)
+                    name, batch_size, length = ('readmission_pred_task_demb', 0, 880)
                 else:
-                    name, batch_size, length = ('readmission_pred_task_demb', 0, 1000)
+                    name, batch_size, length = ('readmission_pred_task_demb', 0, 10000)
             else:
                 raise ValueError(f'Invalid task type: {self.args.task}')
         else:
             raise NotImplementedError(self.embed_model_type)
          
         cacher = DatasetCacher()
-        dataset, metadata = cacher.StructuredDatasetFromCache(name, batch_size, length)
+        if self.embed_model_type.startswith('code'):
+            dataset, metadata = cacher.StructuredDatasetFromCache(name, batch_size, length)
+        elif self.embed_model_type.startswith('desc'):
+            dataset, metadata = cacher.SimpleDatasetFromCache(name, batch_size, length)
         assert(dataset is not None)
         assert(metadata is not None)
         
@@ -156,12 +160,19 @@ class Trainer:
         datsets = random_split(dataset, [0.8, 0.1, 0.1], generator=generator)
         splits = ['train', 'val', 'test']
         for split, ds in zip(splits, datsets):
-            # Disable auto batch if batch_size=0. Good for already collated data.
-            self.data_loaders[split] = DataLoader(ds,
-                # collate_fn=dataset.collator,
-                batch_size=None if batch_size < 2 else batch_size,
-                collate_fn=self.args.collate_fn,
-                shuffle=False)
+            # https://www.kaggle.com/general/159828
+            if self.args.override_batch_size:
+                # If we have a collate function, we need batching.
+                self.data_loaders[split] = DataLoader(ds,
+                    batch_size=self.args.override_batch_size,
+                    collate_fn=self.args.collate_fn,
+                    shuffle=True)
+            else:
+                # Disable auto batch if batch_size=0. Good for already collated data.
+                self.data_loaders[split] = DataLoader(ds,
+                    batch_size=None if batch_size < 2 else batch_size,
+                    collate_fn=self.args.collate_fn,
+                    shuffle=True)
 
                                           
     def eval_and_save(self, epoch, val_loader, test_loader):
