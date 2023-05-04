@@ -18,6 +18,7 @@ from transformers import AutoConfig, AutoModel
 
 logger = logging.getLogger(__name__)
 _BERT_EMBEDDING_SIZE=768
+_BERT_TINY_EMBEDDING_SIZE=128
 
 
 def demb_sum_embeddings_with_mask(x, masks):
@@ -100,7 +101,9 @@ class DembFtEmbed(nn.Module):
         # self.bert_model = AutoModel.from_pretrained('bert-base-uncased')
         # with torch.no_grad():
         #     self.bert_model = BertModel(self.bert_config).from_pretrained('bert-base-uncased')
-        self.bert_model = BertModel(self.bert_config).from_pretrained('bert-base-uncased')
+        # self.bert_model = BertModel(self.bert_config).from_pretrained('bert-base-uncased')
+        self.bert_model = AutoModel.from_pretrained('prajjwal1/bert-tiny')
+        self.bert_emb_size = self.bert_model.config.hidden_size 
         print(f'In DembFtEmbed constructor, before BERT.')
         gpu_usage()
         print(torch.cuda.memory_summary(device=None, abbreviated=False))
@@ -108,29 +111,20 @@ class DembFtEmbed(nn.Module):
             self.bert_model.to(self.cuda)
         self.bert_config = self.bert_model.config
         print(f'BERT model \n{self.bert_model}')
-        # print(f'BERT Config \n{self.bert_config}')
+        print(f'BERT Config \n{self.bert_config}')
         # print(f'BERT named params \n{list(self.bert_model.named_parameters())}')
         print(f'In DembFtEmbed constructor, after BERT.')
         gpu_usage()
         print(torch.cuda.memory_summary(device=None, abbreviated=False))
         
-        for name, param in self.bert_model.named_parameters():
-            if 'embeddings' in name: # embeddings layer
-                param.requires_grad = False
-            if 'encoder' in name and (('attention' in name or 'intermediate' in name) and (not 'dense' in name)):
-                param.requires_grad = False
-            if 'encoder': # encoder layer
-                param.requires_grad = False
+        # for name, param in self.bert_model.named_parameters():
+        #     if 'embeddings' in name: # embeddings layer
+        #         param.requires_grad = False
+        #     if 'encoder' in name and (('attention' in name or 'intermediate' in name) and (not 'dense' in name)):
+        #         param.requires_grad = False
+        #     if 'encoder': # encoder layer
+        #         param.requires_grad = False
     
-      
-#         # Run BERT model forward pass on tokenized input.
-#         embeddings = self.bert_model(input_ids=batch_enc_tensor['input_ids'],
-#                                      attention_mask=batch_enc_tensor['attention_mask'],
-#                                      token_type_ids=batch_enc_tensor['token_type_ids'],
-#                                      # could turn off so we're faster
-#                                      output_attentions=False)
-#         # These may be on GPU.
-#         return embeddings.last_hidden_state 
     
     def forward(self, x, rev_x, **kwargs):
         # if self.use_gpu:
@@ -227,10 +221,10 @@ class DembFtEmbed(nn.Module):
         assert(fwd_embeddings.dtype == torch.float)
         
         # (BxS, 1, 768) -> (B, S, 768)
-        assert(fwd_embeddings.view(bsz, -1, 768).shape[1] == seq_len)
-        assert(rev_embeddings.view(bsz, -1, 768).shape[1] == seq_len)
-        fwd_embeddings = fwd_embeddings.view(bsz, -1, 768)
-        rev_embeddings = rev_embeddings.view(bsz, -1, 768)
+        assert(fwd_embeddings.view(bsz, -1, self.bert_emb_size).shape[1] == seq_len)
+        assert(rev_embeddings.view(bsz, -1, self.bert_emb_size).shape[1] == seq_len)
+        fwd_embeddings = fwd_embeddings.view(bsz, -1, self.bert_emb_size)
+        rev_embeddings = rev_embeddings.view(bsz, -1, self.bert_emb_size)
         
         # print(f'DembFtEmbed forward output x shape {fwd_embeddings.shape}')
         # # Return the ((model_inputs), label) 
@@ -248,7 +242,7 @@ class DembFtRNN(nn.Module):
     1. The forward pass is run to generate embeddings for 
     '''
     
-    def __init__(self, args, bert_emb_size:int=768):
+    def __init__(self, args, bert_emb_size:int=_BERT_TINY_EMBEDDING_SIZE):
         super().__init__()
         """
         TODO: 

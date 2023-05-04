@@ -13,6 +13,7 @@ from transformers import AutoConfig, AutoModel
 
 logger = logging.getLogger(__name__)
 _BERT_EMBEDDING_SIZE=768
+_BERT_TINY_EMBEDDING_SIZE=768
 
 
 def demb_sum_embeddings_with_mask(x, masks):

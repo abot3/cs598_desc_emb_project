@@ -126,6 +126,7 @@ class Trainer:
              'eval_results_test': eval_results_test,
              'epoch_times': epoch_times}
         save_pickle(d, fname)
+        
             
         # p, r, f, roc_auc, rcurve, precision_curve, acc
         return eval_results_val, eval_results_test, epoch_times
@@ -213,8 +214,10 @@ class Trainer:
     def eval_and_save(self, epoch, val_loader, test_loader):
         stop = False
         stop |= should_stop_early()
-            
-        path = os.path.join(self.save_dir, self.save_prefix + "_best.pt")
+        
+        # args.save_prefix
+        fname = f'model_{self.args.embed_model_type}_task_{self.args.task}_isdev{self.args.is_dev}'
+        path = os.path.join(self.save_dir, fname + "_best.pt")
         logger.info(
             "Saving checkpoint to {}".format(path)
         )
@@ -226,22 +229,22 @@ class Trainer:
         # print(f'args {self.args}')
 
         #https://stackoverflow.com/questions/50888391/pickle-of-object-with-getattr-method-in-python-returns-typeerror-object-no
-        if not self.embed_model_type == 'desc_emb_ft':
-            torch.save(
-                {
-                    # 'model_state_dict': self.model.module.state_dict() if (
-                    #     isinstance(self.model, DataParallel)
-                    # ) else self.model.state_dict(),
-                    'model_state_dict': self.model.state_dict(),
-                    'optimizer_state_dict': self.optimizer.state_dict(),
-                    'epochs': epoch,
-                    'args': self.args,
-                },
-                os.path.join(self.save_dir, self.save_prefix + "_best.pt")
-            )
-            logger.info(
-                "Finished saving checkpoint to {}".format(path)
-            )
+        # if not self.embed_model_type == 'desc_emb_ft':
+        torch.save(
+            {
+                # 'model_state_dict': self.model.module.state_dict() if (
+                #     isinstance(self.model, DataParallel)
+                # ) else self.model.state_dict(),
+                'model_state_dict': self.model.state_dict(),
+                'optimizer_state_dict': self.optimizer.state_dict(),
+                'epochs': epoch,
+                'args': self.args,
+            },
+            path
+        )
+        logger.info(
+            "Finished saving checkpoint to {}".format(path)
+        )
         
         # p, r, f, roc_auc, rcurve, prec_curve, rec_curve 
         val_results = self.eval_model(epoch, val_loader)
@@ -273,5 +276,4 @@ class Trainer:
         precision_curve, recall_curve, thresholds = precision_recall_curve(y_true, y_score)
         accuracy = accuracy_score(y_true, y_pred)
         return p, r, f, roc_auc, rcurve, precision_curve, recall_curve, accuracy
-
 
