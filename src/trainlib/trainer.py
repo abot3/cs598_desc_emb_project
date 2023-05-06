@@ -58,6 +58,7 @@ class Trainer:
         self.data_loaders = {}
         # for subset in ['train'] + self.args.valid_subsets:
         self.load_dataset()
+   
         
         
     def train(self):
@@ -77,6 +78,9 @@ class Trainer:
         Note that please pass all four arguments to the model so that we can use this function for both 
         models. (Use `model(x, masks, rev_x, rev_masks)`.)
         """
+        if self.args.eval_only:
+            return self.eval_only()
+        
         epoch_times = []
         eval_results_val = []
         eval_results_test = []
@@ -138,10 +142,21 @@ class Trainer:
         name = ''
         batch_size = 0
         length = 0
+        
         if self.embed_model_type == 'desc_emb_ft':
             return self.load_desc_emb_ft_dataset()
         
-        if self.embed_model_type.startswith('code'):
+        if self.args.db_name == 'eicu':
+            if self.args.task == 'mort':
+                if self.args.is_dev:
+                    name, batch_size, length = ('eicu_mortality_pred_task_demb', 0, 2687)
+                else:
+                    name, batch_size, length = ('eicu_mortality_pred_task_demb', 0, 16383)
+            elif self.args.task == 'readm':
+                raise ValueError(f'Invalid task type: {self.args.task}')
+            else:
+                raise ValueError(f'Invalid task type: {self.args.task}')
+        elif self.embed_model_type.startswith('code'):
             if self.args.task == 'mort':
                 if self.args.is_dev:
                     name, batch_size, length = ('mortality_pred_task_cemb', 0, 631)
@@ -179,8 +194,12 @@ class Trainer:
         assert(metadata is not None)
         
         generator = torch.Generator().manual_seed(self.args.random_seed)
-        datsets = random_split(dataset, [0.8, 0.1, 0.1], generator=generator)
-        splits = ['train', 'val', 'test']
+        datsets = [dataset]
+        splits = ['test']
+        if not self.args.eval_only:
+            generator = torch.Generator().manual_seed(self.args.random_seed)
+            datsets = random_split(dataset, [0.8, 0.1, 0.1], generator=generator)
+            splits = ['train', 'val', 'test']
         for split, ds in zip(splits, datsets):
             # https://www.kaggle.com/general/159828
             if self.args.override_batch_size:
@@ -198,9 +217,12 @@ class Trainer:
                 
 
     def load_desc_emb_ft_dataset(self):
-        generator = torch.Generator().manual_seed(self.args.random_seed)
-        datsets = random_split(self.args.no_use_cached_dataset, [0.8, 0.1, 0.1], generator=generator)
-        splits = ['train', 'val', 'test']
+        datsets = [self.args.no_use_cached_dataset]
+        splits = ['test']
+        if not self.args.eval_only:
+            generator = torch.Generator().manual_seed(self.args.random_seed)
+            datsets = random_split(self.args.no_use_cached_dataset, [0.8, 0.1, 0.1], generator=generator)
+            splits = ['train', 'val', 'test']
         for split, ds in zip(splits, datsets):
             # https://www.kaggle.com/general/159828
             assert(self.args.override_batch_size)
@@ -209,6 +231,32 @@ class Trainer:
                 batch_size=self.args.override_batch_size,
                 collate_fn=self.args.collate_fn,
                 shuffle=True)
+
+            
+    def eval_only(self):
+        epoch_times = []
+        eval_results_test = []
+        start_epoch = time.time()
+        eval_out = self.eval_model(epoch=0, data_loader=self.data_loaders['test'])
+        p, r, f, roc_auc, rcurve, prec_curve, rec_curve, acc = eval_out
+        print('Epoch: {} \t Validation p: {:.2f}, r:{:.2f}, acc:{:.2f}, f: {:.2f}, roc_auc: {:.2f}'
+              .format(1, p, r, acc, f, roc_auc))
+        eval_results_test.append(eval_out)
+        end_epoch = time.time()
+        epoch_times.append(end_epoch - start_epoch)
+        
+        # Save the test results.
+        fname = os.path.join(
+            self.save_dir,
+            f'eval_results_{self.args.embed_model_type}_task_{self.args.task}_'
+            f'isdev{self.args.is_dev}_evalonly_{self.args.eval_only}.pkl'
+        )
+        d = {'eval_results_val': None,
+             'eval_results_test': eval_results_test,
+             'epoch_times': epoch_times}
+        save_pickle(d, fname)
+        # p, r, f, roc_auc, rcurve, precision_curve, acc
+        return None, eval_results_test, epoch_times
     
                                           
     def eval_and_save(self, epoch, val_loader, test_loader):
@@ -246,11 +294,11 @@ class Trainer:
             "Finished saving checkpoint to {}".format(path)
         )
         
-        # p, r, f, roc_auc, rcurve, prec_curve, rec_curve 
+        # p, r, f, roc_auc, rcurve, prec_curve, rec_curve, acc
         val_results = self.eval_model(epoch, val_loader)
         test_results = self.eval_model(epoch, test_loader)
         return stop, val_results, test_results
-
+    
 
     def eval_model(self, epoch, data_loader):
         self.model.eval()
@@ -258,7 +306,8 @@ class Trainer:
         y_score = torch.Tensor()
         y_true = torch.LongTensor()
         # for x, masks, rev_x, rev_masks, y in val_loader:
-        for sample_dict in data_loader:
+        loader = tqdm.tqdm(data_loader) if self.args.eval_only else data_loader
+        for sample_dict in loader:
             y = sample_dict['y']
             y_hat = self.model(**sample_dict)
             y_score = torch.cat((y_score,  y_hat.detach().to('cpu')), dim=0)
