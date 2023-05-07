@@ -14,19 +14,52 @@ Group: 191: botelho3@illinois.edu, ~~tconst4@illinois.edu~~
 ## Name
 Replicating Unifying Electronic Health Record Systems via Text Embedding
 
+Original Paper:
+```
+@misc{
+    hur2022unifying,
+    title={Unifying Heterogeneous Electronic Health Records Systems via Text-Based Code Embedding}, 
+    author={Kyunghoon Hur and Jiyoung Lee and Jungwoo Oh and Wesley Price and Young-Hak Kim and Edward Choi},
+    year={2022},
+    eprint={2108.03625},
+    archivePrefix={arXiv},
+    primaryClass={cs.LG}
+}
+```
+
+Original author's [repo on Github](https://github.com/hoon9405/DescEmb).
 
 ## Description
 
 This repo attempts to replicate the paper `Unifying Heterogeneous Electronic Health Records Systems via Text-Based Code Embedding`. It processes the eICU and MIMIC-III databases into an embedding using either a Text Encoder model or a RNN trained on sequences of medical events. The Text Encoder model is swappable, in practice we use BERT and BERT-Tiny. A Bidirectional-RNN using GRUs is then trained to make medical outcome predictions (e.g. Mortality) using the Medical Code or Medical Text embeddings from the Encoder layer as input. The .ipynb contains code to train, evaluate and plot performance of both models.
 
 ## Installation
-Spin up a Conda environment and make sure to install the packages listed in `install.sh`. The major dependencies are PyTorch, PyHealth, BERT, Transformers and the standard Numpy/ScikitLearn/Pandas stack.
+Spin up a Conda environment and make sure to install the packages listed in `install.sh`. The major dependencies are PyTorch, PyHealth, BERT, Transformers and the standard Numpy/ScikitLearn/Pandas/Matplotlig/Jupyter stack.
+
+If using conda create an environment and install dependencies:
+
+```
+cd <repo clone dir>
+conda create --name <env_name>
+conda activate <env_name>
+./install.sh
+```
+
+Note: this project was tested on Linux. If on windows install using WSL2.
 
 This project also requires the MIMIC-III and eICU datasets. Place these in a `home` directory relative path e.g. `~/ehr_data/*` and provide the path to the `.ipynb` in global vars `MIMIC_DATA_DIR_` and `EICU_DATA_DIR_`. If you have a GPU with > 4GB RAM you can enable/disable GPU eval and training via `BERT_USE_GPU_` and `USE_GPU_`. Dev mode can be enabled using the `DEV_` env variable, this loads a small subset of either dataset to test new code.
 
+**MIMIC-III Dataset**
+
+This project uses MIMIC-III v1.4 dataset. Available from [Physionet](https://physionet.org/content/mimiciii/1.4/). This dataset is close-source and requires a free training course and license agreement before it can be accessed. Details available at the MIT MIMIC project [homepage](https://mimic.mit.edu/docs/).
+
+**eICU Dataset**
+
+This project uses the eICU v2.0 database. Available from [Physionet](https://physionet.org/content/eicu-crd/2.0/). This dataset is close-source and requires a free training course and license agreement before it can be accessed. Details available at the MIT MIMIC project [homepage](https://eicu-crd.mit.edu/about/eicu/).
+
 &nbsp;
 
-## Layout 
+## Source Layout 
 
 ### Trainlib
 
@@ -86,7 +119,6 @@ Implements the DescEmb models: `class DembEmbed` and `class DembRNN`. Note: Demb
 
 Implements the DescEmb models: `class DembFtEmbed` and `class DembFtRNN`. Note: DembFtEmbed invokes BERT to compute text embeddings, and BERT weights are updated during training. This is __slow__ and GPU is __required__ to train this model in a reasonable amount of time.
 
-
 &nbsp;
 
 ### Datsets
@@ -104,6 +136,67 @@ Implements `class StructuredDataset`, a wrapper around `torch.Dataset` which use
 Open the `.ipynb` file. Run the cells under the `Preprocessing` header to load, process, and save a dataset to disk before traning. Load one of the datasets using `Load MIMIC III Data` or `Load eICU Data` cells. Next run the `Dataloaders and Collate` cell corresponding to one of the three tasks you wish to perform ( `desc_emb_ft`, `desc_emb`, or `code_emb`) on the loaded dataset. Then cache the preprocessed dataset to disk using `Dataset Caching` cells.
 
 To train a model on the cached dataset use one of the `Condensed Traning using Trainer` cells corresponding to the EHR prediction task you are interested in (e.g. Morality, Readimission, Length-of-Stay). This will load the cached data, create a `Trainer` object containing a `class EHRModel`, and invoke its `train()` function on the model. Eval on the test set is performed by `Trainer` and results are returned and plotted. If __NOT__ interested in training, a pretrained model can be evaluated by setting `args.eval_only = True`. Note: you have to train at least once in order to load a pre-trained model, they are not included in the repo.
+
+## Results
+
+**Claim 1**
+
+**Claim 2**
+
+**Claim 3**
+
+## Citations
+
+```
+@misc{hur2022unifying,
+      title={Unifying Heterogeneous Electronic Health Records Systems via Text-Based Code Embedding}, 
+      author={Kyunghoon Hur and Jiyoung Lee and Jungwoo Oh and Wesley Price and Young-Hak Kim and Edward Choi},
+      year={2022},
+      eprint={2108.03625},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG}
+}
+```
+
+```
+@misc{zhao2021pyhealth,
+      title={PyHealth: A Python Library for Health Predictive Models}, 
+      author={Yue Zhao and Zhi Qiao and Cao Xiao and Lucas Glass and Jimeng Sun},
+      year={2021},
+      eprint={2101.04209},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG}
+}
+```
+
+```
+@inproceedings{devlin-etal-2019-bert,
+    title = "{BERT}: Pre-training of Deep Bidirectional Transformers for Language Understanding",
+    author = "Devlin, Jacob  and
+      Chang, Ming-Wei  and
+      Lee, Kenton  and
+      Toutanova, Kristina",
+    booktitle = "Proceedings of the 2019 Conference of the North {A}merican Chapter of the Association for Computational Linguistics: Human Language Technologies, Volume 1 (Long and Short Papers)",
+    month = jun,
+    year = "2019",
+    address = "Minneapolis, Minnesota",
+    publisher = "Association for Computational Linguistics",
+    url = "https://aclanthology.org/N19-1423",
+    doi = "10.18653/v1/N19-1423",
+    pages = "4171--4186",
+}
+```
+
+```
+Johnson, A., Pollard, T., & Mark, R. (2016).
+MIMIC-III Clinical Database (version 1.4).
+PhysioNet. https://doi.org/10.13026/C2XW26.
+```
+
+```
+Johnson, A., Pollard, T., Shen, L. et al. MIMIC-III, a freely accessible critical care database.
+Sci Data 3, 160035 (2016). https://doi.org/10.1038/sdata.2016.35
+```
 
 ## Getting started
 
@@ -191,7 +284,14 @@ You can also document commands to lint the code or run tests. These steps help t
 Show your appreciation to those who have contributed to the project.
 
 ## License
-For open source projects, say how it is licensed.
+Copyright 2023 botelho3@illinois.edu
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the “Software”), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+
+Frozen.
