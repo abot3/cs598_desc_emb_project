@@ -18,7 +18,7 @@ with open(fname, 'r') as f:
         code, desc = l.split(sep=' ', maxsplit=1)
         ICD_10_LUT_[code] = desc
         
-def eicu_mortality_pred_task_demb(CODE_COUNT, patient):
+def eicu_mortality_pred_task_demb(CODE_COUNT, eicubase, patient):
     """
     patient is a <pyhealth.data.Patient> object
     """
@@ -157,7 +157,7 @@ def eicu_mortality_pred_task_demb(CODE_COUNT, patient):
     return samples
 
 
-def eicu_mortality_pred_task_cemb(CODE_COUNT, patient):
+def eicu_mortality_pred_task_cemb(CODE_COUNT, eicubase, patient):
     """
     patient is a <pyhealth.data.Patient> object
     each sample is a list of vists for 1 patient.

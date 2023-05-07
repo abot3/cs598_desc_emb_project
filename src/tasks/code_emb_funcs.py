@@ -1,12 +1,13 @@
 # General includes.
 import os
+import itertools
 
 # Typing includes.
 from typing import Dict, List, Optional, Any, Tuple, Callable, Iterable
 
 from pyhealth.data import Patient, Visit, Event
 
-def readmission_pred_task_cemb(CODE_COUNT, patient):
+def readmission_pred_task_cemb(CODE_COUNT, mimic3base, patient):
     """
     patient is a <pyhealth.data.Patient> object
     each sample is a list of vists for 1 patient.
@@ -96,16 +97,11 @@ def readmission_pred_task_cemb(CODE_COUNT, patient):
     # If none of the samples met the criteria return an empty list.
     if samples[0]['num_visits'] == 0:
         return []
-
-    # Potentially multiply the sample n-times to increase dataset size.
-    samples.extend(
-        list(deepcopy(samples[0]) for s in range(SAMPLE_MULTIPLIER_-1))
-    )
         
     return samples
     
     
-def mortality_pred_task_cemb(CODE_COUNT, patient):
+def mortality_pred_task_cemb(CODE_COUNT, mimic3base, patient):
     """
     patient is a <pyhealth.data.Patient> object
     each sample is a list of vists for 1 patient.
@@ -210,10 +206,5 @@ def mortality_pred_task_cemb(CODE_COUNT, patient):
     # If none of the samples met the criteria return an empty list.
     if samples[0]['num_visits'] == 0:
         return []
-
-    # Potentially multiply the sample n-times to increase dataset size.
-    samples.extend(
-        list(deepcopy(samples[0]) for s in range(SAMPLE_MULTIPLIER_-1))
-    )
         
     return samples

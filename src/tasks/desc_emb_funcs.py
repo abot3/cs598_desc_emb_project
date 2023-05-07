@@ -1,5 +1,6 @@
 # General includes.
 import os
+import itertools
 
 # Typing includes.
 from typing import Dict, List, Optional, Any, Tuple, Callable, Iterable
@@ -14,7 +15,7 @@ from pyhealth.data import Patient, Visit, Event
 #   5. diagnosis prediction
 
 #{code: idx for idx, code in enumerate(READMISSION_PER_PATIENT_ICD_9_CODE_COUNT_.keys())}
-def readmission_pred_task_demb(CODE_COUNT, patient, time_window=3):
+def readmission_pred_task_demb(CODE_COUNT, mimic3base, patient, time_window=3):
     """
     patient is a <pyhealth.data.Patient> object
     """
@@ -143,21 +144,19 @@ def readmission_pred_task_demb(CODE_COUNT, patient, time_window=3):
     # }
     for code in sample['conditions']:
         CODE_COUNT[code] = CODE_COUNT.get(code, 0) + 1
-
-    samples.extend(
-        list(deepcopy(sample) for s in range(SAMPLE_MULTIPLIER_))
-    )
+        
+    samples.append(sample)
     return samples
 
 
-def mortality_pred_task_demb(CODE_COUNT, patient):
+def mortality_pred_task_demb(CODE_COUNT, mimic3base, patient):
     """
     patient is a <pyhealth.data.Patient> object
     """
     samples = []
     visits = []
     kMaxListSize = 40
-
+    
     global_mortality_label = 0
     # loop over all visits but the last one
     for i in range(len(patient)):
@@ -300,9 +299,7 @@ def mortality_pred_task_demb(CODE_COUNT, patient):
     for code in sample['conditions']:
         CODE_COUNT[code] = CODE_COUNT.get(code, 0) + 1
 
-    if SAMPLE_MULTIPLIER_:
-        samples.extend(
-            list(deepcopy(sample) for s in range(SAMPLE_MULTIPLIER_))
-        )
-        
+    samples.append(sample)
     return samples
+
+
