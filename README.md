@@ -3,6 +3,9 @@
 Group: 191: botelho3@illinois.edu, ~~tconst4@illinois.edu~~
 
 
+**TODO: Add PDF to repo**
+
+
 ## Project Documentation
 - Report 
     - [Link](https://docs.google.com/document/d/1sVWWdtCO5BmSj1AX4iKu4Ay2E02Kpxaifc9WcGRpYCE/edit?usp=sharing)
@@ -141,11 +144,50 @@ To train a model on the cached dataset use one of the `Condensed Traning using T
 
 ## Results
 
+<br>
+
 **Claim 1**
+
+Outcome: Reproducible
+
+|               | **Mortablity<br>CodeEmb**     | **Mortality<br>DescEmb**     | **Readmission<br> CodeEmb**   | **Readmission DescEmb**      |
+|---------------|-------------------------------|------------------------------|-------------------------------|------------------------------|
+| **AUPRC**     | 0.61<br>(4681/28745 = 16% TP) | 0.7<br>(1519/11835 = 12% TP) | 0.84<br>(6529/26897 = 24% TP) | 0.86<br>(3363/9991 = 33% TP) |
+| **AUROC**     | 0.88                          | 0.92                         | 0.89                          | 0.91                         |
+| **Accuracy**  | 0.89                          | 0.91                         | 0.94                          | 0.94                         |
+| **Precision** | 0.66                          | 0.76                         | 0.99                          | 0.86                         |
+| **Recall**    | 0.47                          | 0.37                         | 0.72                          | 0.78                         |
+
+<br>
+<br>
 
 **Claim 2**
 
+Outcome: Not Reproducible
+
+| **null**     | **DescEmb MIMIC-III**    | **DescEmb eICU**           |
+|--------------|--------------------------|----------------------------|
+| **AUPRC**    | 0.7 (1519/11835= 12% TP) | 0.2 (1266/15117 = 8.3% TP) |
+| **AUROC**    | 0.92                     | 0.75                       |
+| **Accuracy** | 0.88                     | 0.92                       |
+
+
+<br>
+<br>
+
 **Claim 3**
+
+Outcome: Partially Reproducible
+
+|               | **Mortality CodeEmb**         | **Mortality DescEmb**        | **Mortality DescEmbFt**       |
+|---------------|-------------------------------|------------------------------|-------------------------------|
+| **AUPRC**     | 0.61<br>(4681/28745 = 16% TP) | 0.7<br>(1519/11835 = 12% TP) | 0.45<br>(1519/11835 = 12% TP) |
+| **AUROC**     | 0.88                          | 0.92                         | 0.84                          |
+| **Accuracy**  | 0.89                          | 0.91                         | 0.87                          |
+| **Precision** | 0.66                          | 0.76                         | 0.54                          |
+| **Recall**    | 0.47                          | 0.37                         | 0.19                          |
+
+
 
 ## Citations
 
