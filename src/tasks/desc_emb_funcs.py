@@ -50,7 +50,7 @@ def readmission_pred_task_demb(CODE_COUNT, mimic3base, patient, time_window=3):
         drugs_full = visit.get_event_list(table="PRESCRIPTIONS")
         
         # step 3: exclusion criteria: visits without condition, procedure, or drug
-        if len(conditions) * len(procedures) == 0 * len(drugs_full) == 0:
+        if len(conditions) * len(procedures) * len(drugs_full):
             continue
         if len(conditions) + len(procedures) + len(drugs_full) < 5:
             # Exclude stays with less than 5 procedures.
@@ -193,7 +193,7 @@ def mortality_pred_task_demb(CODE_COUNT, mimic3base, patient):
         # labevents = visit.get_code_list(table="LABEVENTS")
 
         # step 3: exclusion criteria: visits without condition, procedure, or drug
-        if len(conditions) * len(procedures) == 0 * len(drugs_full) == 0:
+        if len(conditions) * len(procedures) * len(drugs_full):
             continue
         if len(conditions) + len(procedures) + len(drugs_full) < 5:
             # Exclude stays with less than 5 procedures.

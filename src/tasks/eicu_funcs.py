@@ -133,6 +133,7 @@ def eicu_mortality_pred_task_demb(CODE_COUNT, eicubase, patient):
         "conditions": conditions,
         "conditions_text": conditions_text,
         # "procedures": procedures,
+        # "drugs_full": drugs_full,
         "procedures_text": procedures_text,
         "drugs_text": drugs_text,
         
