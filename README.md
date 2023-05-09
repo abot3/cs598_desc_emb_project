@@ -1,9 +1,6 @@
 # CS598 Final Project
 
-Group: 191: botelho3@illinois.edu, ~~tconst4@illinois.edu~~
-
-
-**TODO: Add PDF to repo**
+Group: 191: botelho3@illinois.edu, tconst4@illinois.edu
 
 
 ## Project Documentation
