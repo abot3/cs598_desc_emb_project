@@ -8,13 +8,15 @@ Group: 191: botelho3@illinois.edu, ~~tconst4@illinois.edu~~
 
 ## Project Documentation
 - Report 
-    - [Link](https://docs.google.com/document/d/1bLIQ81IsHfF2ZSuUE5uEzSp8a0GFN5Y4CCjlqLw2K_w/edit?usp=sharing)
+    - [Google Docs Link](https://docs.google.com/document/d/1bLIQ81IsHfF2ZSuUE5uEzSp8a0GFN5Y4CCjlqLw2K_w/edit?usp=sharing)
 - Presentation
-    - [Link](https://docs.google.com/presentation/d/1KU8uNUgng8C4sKGzMCqePgAUSKTsTT_cqCNMdvTBuas/edit?usp=sharing)
+    - [Google Slides Link](https://docs.google.com/presentation/d/1KU8uNUgng8C4sKGzMCqePgAUSKTsTT_cqCNMdvTBuas/edit?usp=sharing)
 - Video
-    - [Link](https://youtu.be/t75XAS6lhkw)
+    - [Youtube Link](https://youtu.be/t75XAS6lhkw)
 - Descriptive Notebook
     - See `notebook_with_plots.ipynb`
+- Pretrained Models
+    - [Google Drive Link](https://drive.google.com/drive/folders/1y2tbYFiqKp4o-ZhxbwwP0C8oRJucWfdc?usp=sharing)
 
 ## Name
 Replicating Unifying Electronic Health Record Systems via Text Embedding
