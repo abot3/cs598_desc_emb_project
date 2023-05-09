@@ -46,6 +46,11 @@ Spin up a Conda environment and make sure to install the packages listed in `ins
 If using conda create an environment and install dependencies:
 
 ```
+conda create --name <env> --file requirements.txt
+```
+or 
+
+```
 cd <repo clone dir>
 conda create --name <env_name>
 conda activate <env_name>
